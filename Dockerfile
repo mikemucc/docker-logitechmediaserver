@@ -50,4 +50,7 @@ VOLUME ["/mnt/state","/mnt/music","/mnt/playlists"]
 
 EXPOSE 3483 3483/udp 9000 9005 9010 9090 5353 5353/udp
 
+HEALTHCHECK --interval=2m --timeout=5s \
+    CMD curl --fail http://localhost:9000/Default/settings/index.html || exit 1
+
 CMD ["/startup.sh"]
