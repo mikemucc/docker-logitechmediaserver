@@ -1,7 +1,9 @@
 logitechmediaserver:
   container_name: "logitechmediaserver"
   image: justifiably/logitechmediaserver
-  restart: always
+  restart: unless-stopped
+  environment:
+      - AUTOHEAL_CONTAINER_LABEL=all
   ports:
     - 9000:9000
     - 9005:9005
