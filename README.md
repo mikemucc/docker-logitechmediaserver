@@ -40,3 +40,7 @@ See Github network for other authors (JingleManSweep, map7, joev000).
 
 Works well with my [MusicIP container](https://hub.docker.com/r/justifiably/musicip/).
 
+## Patches
+
+* `lms-musicmagic-host.patch`: this adds a configuration setting
+  MMShost so you can run MusicIP a machine other than localhost.
