@@ -10,8 +10,8 @@ ARG PGID=819
 ENV PUID $PUID
 ENV PGID $PGID
 
-# 7.9.2 final release, 14th Jan 2020.
-ARG LMSDEB=http://downloads.slimdevices.com/LogitechMediaServer_v7.9.2/logitechmediaserver_7.9.2_all.deb
+# 7.9.3 nightly release
+ARG LMSDEB=http://downloads.slimdevices.com/nightly/7.9/sc/11c9213d53dce3231feb3ca6e4ee5fa63d81fc0d/logitechmediaserver_7.9.3~1586752599_all.deb
 
 RUN echo "deb http://www.deb-multimedia.org buster main non-free" | tee -a /etc/apt/sources.list && \
     apt-get update -o Acquire::AllowInsecureRepositories=true && apt-get install -y --allow-unauthenticated deb-multimedia-keyring && \

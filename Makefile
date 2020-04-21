@@ -7,7 +7,7 @@ build:
 	docker build --build-arg LMSDEB=`cat lmsdeb.txt` --build-arg LMS_PATCHES=$(LMS_PATCHES) -t $(USER)/logitechmediaserver:$(TAG) .; docker tag $(USER)/logitechmediaserver:$(TAG) $(USER)/logitechmediaserver:latest
 
 base:
-	wget -O - -q "http://www.mysqueezebox.com/update/?version=7.9.2&revision=1&geturl=1&os=deb" > lmsdeb.txt
+	wget -O - -q "http://www.mysqueezebox.com/update/?version=7.9.3&revision=1&geturl=1&os=deb" > lmsdeb.txt
 
 # Grab 8.0.0 latest beta release, can be updated in place without rebuilding image.
 update:
