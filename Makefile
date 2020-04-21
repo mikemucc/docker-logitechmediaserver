@@ -1,7 +1,7 @@
 SH=/bin/bash
 TAG=$(shell cat lmsdeb.txt | sed 's/.*_\([0-9\.~]*\)_all.deb/\1/' | sed 's/~/-/')
 USER=justifiably
-#LMS_PATCHES=
+LMS_PATCHES=Y
 
 build: 
 	docker build --build-arg LMSDEB=`cat lmsdeb.txt` --build-arg LMS_PATCHES=$(LMS_PATCHES) -t $(USER)/logitechmediaserver:$(TAG) .; docker tag $(USER)/logitechmediaserver:$(TAG) $(USER)/logitechmediaserver:latest
