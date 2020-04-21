@@ -1,4 +1,4 @@
-FROM buildpack-deps:buster-curl
+FROM buildpack-deps:stretch-curl
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -10,10 +10,10 @@ ARG PGID=819
 ENV PUID $PUID
 ENV PGID $PGID
 
-# 7.9.2 final release, 14th Jan 2020.
-ARG LMSDEB=http://downloads.slimdevices.com/LogitechMediaServer_v7.9.2/logitechmediaserver_7.9.2_all.deb
+# 7.9.1 final release, 17th Apr 2018.
+ARG LMSDEB=http://downloads.slimdevices.com/LogitechMediaServer_v7.9.1/logitechmediaserver_7.9.1_all.deb
 
-RUN echo "deb http://www.deb-multimedia.org buster main non-free" | tee -a /etc/apt/sources.list && \
+RUN echo "deb http://www.deb-multimedia.org stretch main non-free" | tee -a /etc/apt/sources.list && \
     apt-get update -o Acquire::AllowInsecureRepositories=true && apt-get install -y --allow-unauthenticated deb-multimedia-keyring && \
     apt-get install -y --allow-unauthenticated \
     perl \
