@@ -1,14 +1,25 @@
-FROM buildpack-deps:stretch-curl
+FROM buildpack-deps:buster-curl
 
-ENV DEBIAN_FRONTEND noninteractive
-ARG http_proxy
+ARG DEBIAN_FRONTEND=noninteractive
 
-RUN echo "deb http://www.deb-multimedia.org stretch main non-free" | tee -a /etc/apt/sources.list && \
-    apt-get update && apt-get install -y --allow-unauthenticated deb-multimedia-keyring && \
+# Env variables persisted in container
+ARG LMS_PATCHES
+ENV LMS_PATCHES=$LMS_PATCHES
+ARG PUID=819
+ARG PGID=819
+ENV PUID $PUID
+ENV PGID $PGID
+
+# 7.9.2 final release, 14th Jan 2020.
+ARG LMSDEB=http://downloads.slimdevices.com/LogitechMediaServer_v7.9.2/logitechmediaserver_7.9.2_all.deb
+
+RUN echo "deb http://www.deb-multimedia.org buster main non-free" | tee -a /etc/apt/sources.list && \
+    apt-get update -o Acquire::AllowInsecureRepositories=true && apt-get install -y --allow-unauthenticated deb-multimedia-keyring && \
     apt-get install -y --allow-unauthenticated \
     perl \
     libcrypt-openssl-rsa-perl libio-socket-inet6-perl libwww-perl libio-socket-ssl-perl \
     locales \
+    espeak \
     faad \
     faac \
     flac \
@@ -16,41 +27,34 @@ RUN echo "deb http://www.deb-multimedia.org stretch main non-free" | tee -a /etc
     sox \
     ffmpeg \
     wavpack \
+    patch \
     --no-install-recommends && \
     apt-get upgrade -y --allow-unauthenticated && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 7.9.0 final release, 8th Mar 2017.
-# http://downloads.slimdevices.com/LogitechMediaServer_v7.9.0/logitechmediaserver_7.9.0_all.deb
-# 7.9.1 final release, 19th Apr 2018.
-# Pass in LMSDEB to override. Using a nightly release, can be updated in place without rebuilding image.
-ARG LMSDEB=http://downloads.slimdevices.com/LogitechMediaServer_v7.9.1/logitechmediaserver_7.9.1_all.deb
-
 RUN curl -o /tmp/lms.deb $LMSDEB && \
     dpkg -i /tmp/lms.deb && \
     rm -f  /tmp/lms.deb
 
-RUN echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen && \
-    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales && \
-    echo LANG=\"en_GB.UTF-8\" > /etc/default/locale
-ENV LANG=en_GB.UTF-8
-    
-# Move config dir to allow editing convert.conf, use a fixed UID to share externally
-RUN useradd --system --uid 819 -M -s /bin/false -d /usr/share/squeezeboxserver -c "Logitech Media Server user" lms && \
-    mkdir -p /mnt/state/etc && \
-    mv /etc/squeezeboxserver /etc/squeezeboxserver.orig && \
-    cp -pr /etc/squeezeboxserver.orig/* /mnt/state/etc && \
-    ln -s /mnt/state/etc /etc/squeezeboxserver && \
-    chown -R lms.lms /mnt/state
+RUN mkdir /mnt/state /mnt/music /mnt/playlists
 
-COPY lms-setup.sh startup.sh /
+ARG LOCALE=en_GB.UTF-8
+ENV LANG=$LOCALE
+RUN echo "$LOCALE UTF-8" > /etc/locale.gen && \
+    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales && \
+    echo LANG=\"$LOCALE\" > /etc/default/locale
+    
+COPY lms-setup.sh startup.sh *.patch /
+
+# Apply our patches if LMS_PATCHES=y
+RUN if [ -n "$LMS_PATCHES" ]; then cd /usr/share/perl5; for f in /*.patch; do patch -p1 < "$f"; done; fi
 
 VOLUME ["/mnt/state","/mnt/music","/mnt/playlists"]
 
 EXPOSE 3483 3483/udp 9000 9005 9010 9090 5353 5353/udp
 
-HEALTHCHECK --interval=2m --timeout=5s \
+HEALTHCHECK --interval=3m --timeout=30s \
     CMD curl --fail http://localhost:9000/Default/settings/index.html || exit 1
 
 CMD ["/startup.sh"]

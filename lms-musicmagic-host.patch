@@ -1,0 +1,320 @@
+diff --git a/Slim/Plugin/MusicMagic/Common.pm b/Slim/Plugin/MusicMagic/Common.pm
+index 32fc3d04a..26a45f40f 100644
+--- a/Slim/Plugin/MusicMagic/Common.pm
++++ b/Slim/Plugin/MusicMagic/Common.pm
+@@ -70,13 +70,15 @@ sub checkDefaults {
+ 		playlist_prefix => '',
+ 		playlist_suffix => '',
+ 		scan_interval   => 3600,
++		host            => 'localhost',		
+ 		port            => 10002,
+ 	}, 'Slim::Plugin::MusicMagic::Prefs');
+ }
+ 
+ sub grabFilters {
+ 	my ($class, $client, $params, $callback, @args) = @_;
+-	
++
++	my $MMShost = $prefs->get('host');
+ 	my $MMSport = $prefs->get('port');
+ 
+ 	my $http = Slim::Networking::SimpleAsyncHTTP->new(
+@@ -96,7 +98,7 @@ sub grabFilters {
+ 		}
+ 	);
+ 
+-	$http->get( "http://localhost:$MMSport/api/filters" );
++	$http->get( "http://$MMShost:$MMSport/api/filters" );
+ }
+ 
+ sub getFilterList {
+diff --git a/Slim/Plugin/MusicMagic/HTML/EN/plugins/MusicMagic/settings/musicmagic.html b/Slim/Plugin/MusicMagic/HTML/EN/plugins/MusicMagic/settings/musicmagic.html
+index 7519396d8..93d214794 100644
+--- a/Slim/Plugin/MusicMagic/HTML/EN/plugins/MusicMagic/settings/musicmagic.html
++++ b/Slim/Plugin/MusicMagic/HTML/EN/plugins/MusicMagic/settings/musicmagic.html
+@@ -87,6 +87,12 @@
+ 			[% END %]
+ 		[% END %]
+ 
++		[% IF prefs.exists('pref_host') %]
++			[% WRAPPER settingGroup title="SETUP_MMSHOST" desc="SETUP_MMSHOST_DESC" %]
++				<input type="text" class="stdedit" name="pref_host" id="host" value="[% prefs.pref_host %]" size="15">
++			[% END %]
++		[% END %]
++
+ 		[% IF prefs.exists('pref_port') %]
+ 			[% WRAPPER settingGroup title="SETUP_MMSPORT" desc="SETUP_MMSPORT_DESC" %]
+ 				<input type="text" class="stdedit" name="pref_port" id="port" value="[% prefs.pref_port %]" size="5">
+diff --git a/Slim/Plugin/MusicMagic/Importer.pm b/Slim/Plugin/MusicMagic/Importer.pm
+index 52d8d4a8e..0ba5466df 100644
+--- a/Slim/Plugin/MusicMagic/Importer.pm
++++ b/Slim/Plugin/MusicMagic/Importer.pm
+@@ -27,6 +27,7 @@ use Slim::Utils::Versions;
+ 
+ my $initialized = 0;
+ my $MMMVersion  = 0;
++my $MMShost;
+ my $MMSport;
+ 
+ my $log = Slim::Utils::Log->addLogCategory({
+@@ -86,11 +87,12 @@ sub initPlugin {
+ 
+ 	Slim::Plugin::MusicMagic::Common::checkDefaults();
+ 
++	$MMShost = $prefs->get('host');	
+ 	$MMSport = $prefs->get('port');
+ 
+-	main::INFOLOG && $log->info("Testing for API on localhost:$MMSport");
++	main::INFOLOG && $log->info("Testing for API on $MMShost:$MMSport");
+ 	
+-	my $initialized = get( "http://localhost:$MMSport/api/version", 5 );
++	my $initialized = get( "http://$MMShost:$MMSport/api/version", 5 );
+ 
+ 	if (defined $initialized) {
+ 
+@@ -169,7 +171,7 @@ sub doneScanning {
+ 
+ 	main::INFOLOG && $log->info("Done Scanning");
+ 
+-	my $lastDate = get("http://localhost:$MMSport/api/cacheid?contents");
++	my $lastDate = get("http://$MMShost:$MMSport/api/cacheid?contents");
+ 
+ 	if ($lastDate) {
+ 
+@@ -184,6 +186,7 @@ sub doneScanning {
+ sub exportFunction {
+ 	my $class = shift;
+ 
++	$MMShost = $prefs->get('host') unless $MMShost;	
+ 	$MMSport = $prefs->get('port') unless $MMSport;
+ 
+ 	$class->exportSongs;
+@@ -199,7 +202,7 @@ sub exportSongs {
+ 	if ($fullRescan == 1 || $prefs->get('musicip') == 1) {
+ 		main::INFOLOG && $log->info("MusicIP mixable status full scan");
+ 
+-		my $count = get("http://localhost:$MMSport/api/getSongCount");
++		my $count = get("http://$MMShost:$MMSport/api/getSongCount");
+ 		if ($count) {
+ 			# convert to integer
+ 			chomp($count);
+@@ -222,7 +225,7 @@ sub exportSongs {
+ 			main::INFOLOG && $log->info("Fetching ALL song data via songs/extended..");
+ 
+ 			my $MMMSongData = catdir( preferences('server')->get('librarycachedir'), 'mmm-song-data.txt' );
+-			my $MMMDataURL  = "http://localhost:$MMSport/api/songs?extended";
++			my $MMMDataURL  = "http://$MMShost:$MMSport/api/songs?extended";
+ 
+ 			getstore($MMMDataURL, $MMMSongData);
+ 
+@@ -258,7 +261,7 @@ sub exportSongs {
+ 			unlink($MMMSongData);
+ 		} else {
+ 			for (my $scan = 0; $scan <= $count; $scan++) {
+-				my $content = get("http://localhost:$MMSport/api/getSong?index=$scan");
++				my $content = get("http://$MMShost:$MMSport/api/getSong?index=$scan");
+ 
+ 				$class->processSong($content, $progress);
+ 			}
+@@ -297,7 +300,7 @@ sub exportSongs {
+ 			my $pathEnc = Slim::Plugin::MusicMagic::Common::escape($path);
+ 
+ 			# Set musicmagic_mixable on $track object and call $track->update to actually store it.
+-			my $result = get("http://localhost:$MMSport/api/status?song=$pathEnc");
++			my $result = get("http://$MMShost:$MMSport/api/status?song=$pathEnc");
+ 
+ 			if ($result =~ /^(\w+)\s+(.*)/) {
+ 
+@@ -489,7 +492,7 @@ sub processSong {
+ sub exportPlaylists {
+ 	my $class = shift;
+ 
+-	my @playlists = split(/\n/, get("http://localhost:$MMSport/api/playlists"));
++	my @playlists = split(/\n/, get("http://$MMShost:$MMSport/api/playlists"));
+ 
+ 	if (!scalar @playlists) {
+ 		return;
+@@ -512,7 +515,7 @@ sub exportPlaylists {
+ 
+ 		my $listname = Slim::Plugin::MusicMagic::Common::decode($playlists[$i]);
+ 
+-		my $playlist = get("http://localhost:$MMSport/api/getPlaylist?index=$i") || next;
++		my $playlist = get("http://$MMShost:$MMSport/api/getPlaylist?index=$i") || next;
+ 		my @songs    = split(/\n/, $playlist);
+ 
+ 		if ( main::INFOLOG && $log->is_info ) {
+@@ -534,7 +537,7 @@ sub exportDuplicates {
+ 
+ 	main::INFOLOG && $log->info("Checking for duplicates.");
+ 
+-	my @songs = split(/\n/, get("http://localhost:$MMSport/api/duplicates"));
++	my @songs = split(/\n/, get("http://$MMShost:$MMSport/api/duplicates"));
+ 
+ 	$class->_updatePlaylist(string('MUSICIP_DUPLICATES'), \@songs);
+ 
+diff --git a/Slim/Plugin/MusicMagic/Plugin.pm b/Slim/Plugin/MusicMagic/Plugin.pm
+index c8d8e6584..c641191f3 100644
+--- a/Slim/Plugin/MusicMagic/Plugin.pm
++++ b/Slim/Plugin/MusicMagic/Plugin.pm
+@@ -33,6 +33,7 @@ use Slim::Utils::Favorites;
+ use constant MENU_WEIGHT => 95;
+ 
+ my $initialized = 0;
++my $MMShost;
+ my $MMSport;
+ my $canPowerSearch;
+ 
+@@ -144,7 +145,7 @@ sub initPlugin {
+ 
+ 	my $response = _syncHTTPRequest("/api/version");
+ 
+-	main::INFOLOG && $log->info("Testing for API on localhost:$MMSport");
++	main::INFOLOG && $log->info("Testing for API on $MMShost:$MMSport");
+ 
+ 	if ($response->is_error) {
+ 
+@@ -152,7 +153,7 @@ sub initPlugin {
+ 		
+ 		$prefs->set('musicip', 0) if !defined $enabled;
+ 
+-		$log->error("Can't connect to port $MMSport - MusicIP disabled.");
++		$log->error("Can't connect to port $MMSport on $MMShost - MusicIP disabled.");
+ 
+ 	} else {
+ 
+@@ -412,7 +413,7 @@ sub isMusicLibraryFileChanged {
+ 		},
+ 	);
+ 	
+-	$http->get( "http://localhost:$MMSport/api/cacheid?contents" );
++	$http->get( "http://$MMShost:$MMSport/api/cacheid?contents" );
+ }
+ 
+ sub _statusOK {
+@@ -517,7 +518,7 @@ sub _cacheidOK {
+ 		},
+ 	);
+ 	
+-	$http->get( "http://localhost:$MMSport/api/getStatus" );
++	$http->get( "http://$MMShost:$MMSport/api/getStatus" );
+ }
+ 
+ sub _musicipError {
+@@ -878,7 +879,7 @@ sub getMix {
+ 	# url encode the request, but not the argstring
+ 	my $mixArgs = $validMixTypes{$for} . '=' . Slim::Plugin::MusicMagic::Common::escape($id);
+ 	
+-	main::DEBUGLOG && $log->debug("Request http://localhost:$MMSport/api/mix?$mixArgs\&$argString");
++	main::DEBUGLOG && $log->debug("Request http://$MMShost:$MMSport/api/mix?$mixArgs\&$argString");
+ 
+ 	my $response = _syncHTTPRequest("/api/mix?$mixArgs\&$argString");
+ 
+@@ -1417,13 +1418,14 @@ sub _objectInfoHandler {
+ sub _syncHTTPRequest {
+ 	my $url = shift;
+ 	
++	$MMShost = $prefs->get('host') unless $MMShost;	
+ 	$MMSport = $prefs->get('port') unless $MMSport;
+ 	
+ 	my $http = LWP::UserAgent->new;
+ 
+ 	$http->timeout($prefs->get('timeout') || 5);
+ 
+-	return $http->get("http://localhost:$MMSport$url");
++	return $http->get("http://$MMShost:$MMSport$url");
+ }
+ 
+ # This method is used for the in-process rescanner to update mixable status
+@@ -1435,7 +1437,7 @@ sub checkSingleTrack {
+ 	Slim::Plugin::MusicMagic::Importer->initPlugin();
+ 	
+ 	my $path   = Slim::Utils::Misc::pathFromFileURL($url);
+-	my $apiurl = "http://localhost:$MMSport/api/getSong?file=" . uri_escape_utf8($path);
++	my $apiurl = "http://$MMShost:$MMSport/api/getSong?file=" . uri_escape_utf8($path);
+ 	
+ 	my $http = Slim::Networking::SimpleAsyncHTTP->new(
+ 		sub {
+diff --git a/Slim/Plugin/MusicMagic/Prefs/V2.pm b/Slim/Plugin/MusicMagic/Prefs/V2.pm
+index fa3784a95..19951a1dd 100644
+--- a/Slim/Plugin/MusicMagic/Prefs/V2.pm
++++ b/Slim/Plugin/MusicMagic/Prefs/V2.pm
+@@ -13,6 +13,7 @@ sub migrate {
+ 		$prefs->set('musicip',         $oldPrefs->get('musicmagic'));
+ 		$prefs->set('scan_interval',   $oldPrefs->get('scan_interval') || 3600          );
+ 		$prefs->set('player_settings', $oldPrefs->get('player_settings') || 0           );
++		$prefs->set('host',            $oldPrefs->get('host') || 'localhost'            );		
+ 		$prefs->set('port',            $oldPrefs->get('port') || 10002                  );
+ 		$prefs->set('mix_filter',      $oldPrefs->get('mix_filter')                     );
+ 		$prefs->set('reject_size',     $oldPrefs->get('reject_size') || 0               );
+@@ -36,4 +37,4 @@ sub migrate {
+ 	});
+ }
+ 
+-1;
+\ No newline at end of file
++1;
+diff --git a/Slim/Plugin/MusicMagic/Settings.pm b/Slim/Plugin/MusicMagic/Settings.pm
+index 4f0d24344..437d0605d 100644
+--- a/Slim/Plugin/MusicMagic/Settings.pm
++++ b/Slim/Plugin/MusicMagic/Settings.pm
+@@ -30,7 +30,7 @@ sub page {
+ }
+ 
+ sub prefs {
+-	return ($prefs, qw(musicip scan_interval player_settings port mix_filter reject_size reject_type 
++	return ($prefs, qw(musicip scan_interval player_settings host port mix_filter reject_size reject_type 
+ 			   mix_genre mix_variety mix_style mix_type mix_size playlist_prefix playlist_suffix));
+ }
+ 
+diff --git a/Slim/Plugin/MusicMagic/strings.txt b/Slim/Plugin/MusicMagic/strings.txt
+index 07bde5b4b..b6f630d7b 100644
+--- a/Slim/Plugin/MusicMagic/strings.txt
++++ b/Slim/Plugin/MusicMagic/strings.txt
+@@ -542,6 +542,23 @@ SETUP_MUSICMAGICSCANINTERVAL_DESC
+ 	SV	När din MusicIP-databas ändras importeras biblioteksinformationen automatiskt till Logitech Media Server. Du kan ange en minimitid (i sekunder) som Logitech Media Server ska vänta mellan varje gång informationen från MusicIP-databasen uppdateras. Om värdet 0 anges avaktiveras uppdateringsfunktionen.
+ 	ZH_CN	当您的MusicIP数据库改变时，Logitech Media Server将自动地导入最新音乐库信息。您可以指定Logitech Media Server再装您的MusicIP数据库之前极小等候时间（以秒为单位）。以零为值意味着关闭再装功能。
+ 
++SETUP_MMSHOST
++	CS	HTTP host MusicIP
++	DA	MusicIP HTTP-host
++	DE	MusicIP - HTTP-Host
++	EN	MusicIP HTTP Host
++	ES	Host HTTP de MusicIP
++	FI	MusicIP HTTP-isäntä
++	FR	Host HTTP MusicIP
++	HE	יציאמארמארח HTTP עבור MusicIP
++	IT	Host HTTP MusicIP
++	NL	MusicIP-HTTP-host
++	NO	Http-host for MusicIP
++	PL	Host HTTP usługi MusicIP
++	RU	HTTP-host MusicIP
++	SV	HTTP-host för MusicIP
++	ZH_CN	MusicIP HTTP主机
++
+ SETUP_MMSPORT
+ 	CS	HTTP port MusicIP
+ 	DA	MusicIP HTTP-port
+@@ -559,6 +576,23 @@ SETUP_MMSPORT
+ 	SV	HTTP-port för MusicIP
+ 	ZH_CN	MusicIP HTTP端口
+ 
++SETUP_MMSHOST_DESC
++	CS	Název hostitele počítače, na kterém je služba MusicIP spuštěna (výchozí nastavení pro stejný hostitel jako server Logitech Media Server, 'localhost')
++	DA	Værtsnavnet på den maskine, som MusicIP-tjenesten kører på (som standard til samme vært som Logitech Media Server, 'localhost')
++	DE	Der Hostname des Computers, auf dem der MusicIP-Dienst ausgeführt wird (standardmäßig derselbe Host wie der Logitech Media Server, 'localhost')
++	EN	The hostname of the machine that the MusicIP Service is running on (defaults to the same host as Logitech Media Server, 'localhost')
++	ES	El nombre de host de la máquina en la que se está ejecutando el servicio MusicIP (predeterminado para el mismo host que Logitech Media Server, 'localhost')
++	FI	Sen laitteen isäntänimi, johon MusicIP-palvelu on käynnissä (oletusarvo on sama isäntä kuin Logitech Media Server, 'localhost')
++	FR	Nom d'hôte de la machine sur laquelle le service MusicIP est exécuté (par défaut, le même hôte que Logitech Media Server, 'localhost')
++	HE	שם המארח של המכונה שבו שירות MusicIP פועל (ברירות מחדל לאותו מארח כמו Logitech Media Server, 'localhost')
++	IT	Il nome host della macchina su cui è in esecuzione il servizio MusicIP (predefinito sullo stesso host di Logitech Media Server, 'localhost')
++	NL	De hostnaam van de machine waarop de MusicIP-service wordt uitgevoerd (standaard ingesteld op dezelfde host als Logitech Media Server, 'localhost')
++	NO	Vertsnavnet til maskinen som MusicIP-tjenesten kjører på (standard til samme vert som Logitech Media Server, 'localhost')
++	PL	Nazwa hosta komputera, na którym uruchomiona jest usługa MusicIP (domyślnie jest to ten sam host, na którym znajduje się serwer Logitech Media Server, „localhost”)
++	RU	Имя хоста компьютера, на котором запущена служба MusicIP (по умолчанию тот же хост, что и у Logitech Media Server, «localhost»)
++	SV	Ime gostitelja računalnika, na katerem se izvaja storitev MusicIP (privzeto je isti gostitelj kot Logitech Media Server, 'localhost')
++	ZH_CN	运行MusicIP服务的计算机的主机名（默认为与Logitech Media Server相同的主机，'localhost'）
++
+ SETUP_MMSPORT_DESC
+ 	CS	Služba API MusicIP umožňuje výběr http portu k použití pro dotazy na MusicIP API. Vložte zde číslo portu k přiřazení nastavení, které jste zvolili, k nastavení Mixéru Music IP.
+ 	DA	I grænsesnittet til MusicIP-tjenesten kan man definere en http-port der skal bruges ved forespørgsler til MusicIP. Her skal du angive det portnummer som svarer til det du valgte i indstillingerne for MusicIP Mixer.
