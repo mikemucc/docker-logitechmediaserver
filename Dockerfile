@@ -3,7 +3,7 @@ FROM buildpack-deps:stretch-curl
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Env variables persisted in container
-ARG LMS_PATCHES
+ARG LMS_PATCHES=Y
 ENV LMS_PATCHES=$LMS_PATCHES
 ARG PUID=819
 ARG PGID=819
