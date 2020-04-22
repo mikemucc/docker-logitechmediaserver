@@ -84,3 +84,5 @@ forums: <https://forums.slimdevices.com>
 * Original sadly discontinued [Logitech hardware players](http://wiki.slimdevices.com/index.php/Main_Page#Players_.26_Controllers)
 * The excellent [PiCorePlayer](https://www.picoreplayer.org) distribution for Raspberry Pi
 * Many others...
+
+[lms-material]: https://forums.slimdevices.com/showthread.php?109624-Announce-Material-Skin
