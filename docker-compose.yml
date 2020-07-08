@@ -1,6 +1,6 @@
 logitechmediaserver:
   container_name: "logitechmediaserver"
-  image: justifiably/logitechmediaserver
+  image: michaelmucciarone/logitechmediaserver
   restart: unless-stopped
   labels:
     - "autoheal=true"                # See https://github.com/willfarrell/docker-autoheal
@@ -12,8 +12,8 @@ logitechmediaserver:
     - 9090:9090
     - 3483:3483
     - 3483:3483/udp
-    - 5353:5353/udp                  # mDNS, watch for clash with avahi daemon on host
+    # - 5353:5353/udp                  # mDNS, watch for clash with avahi daemon on host
   volumes:
-    - /srv/music/music:/mnt/music:ro
-    - /srv/music/lms-playlists:/mnt/playlists
-    - /srv/lms-state:/mnt/state
+    - /volume1/Music:/mnt/music:ro
+    - /volume1/Music/playlists:/mnt/playlists
+    - /home/michael/lms-state:/mnt/state
